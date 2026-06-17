@@ -1,6 +1,8 @@
 #include "MENU.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_rcc.h"
+#include "stm32f4xx_adc.h"
+#include "stm32f4xx_dac.h"
 #include "stdio.h"
 #include "../LCD/LCD.h"
 #include "../Teclado/TECLADO.h"
@@ -12,14 +14,66 @@ static uint8_t ventana_inicio = 0;
 static uint8_t backlight_encendido = 1;
 static uint32_t localSystickContador = 0;
 
-// Reemplazados los menúes 4 y 5 en la lista principal
 static const char *opciones_menu[] = {
     "1.Tecla Presionada ",
     "2.Backlight        ",
     "3.Contador         ",
-    "4.Seguidor ADC-DAC ", // Menú 4 modificado
-    "5.Voltimetro       "  // Menú 5 modificado
+    "4.Seguidor ADC-DAC ",
+    "5.Voltimetro       "
 };
+
+void PERIFERICOS_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+    ADC_InitTypeDef  ADC_InitStructure;
+    ADC_CommonInitTypeDef ADC_CommonInitStructure;
+    DAC_InitTypeDef  DAC_InitStructure;
+
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOB, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
+
+    GPIO_StructInit(&GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_0;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
+    GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_5;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
+    GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    ADC_CommonInitStructure.ADC_Mode             = ADC_Mode_Independent;
+    ADC_CommonInitStructure.ADC_Prescaler        = ADC_Prescaler_Div4;
+    ADC_CommonInitStructure.ADC_DMAAccessMode    = ADC_DMAAccessMode_Disabled;
+    ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
+    ADC_CommonInit(&ADC_CommonInitStructure);
+
+    ADC_StructInit(&ADC_InitStructure);
+    ADC_InitStructure.ADC_Resolution           = ADC_Resolution_12b;
+    ADC_InitStructure.ADC_ScanConvMode          = DISABLE;
+    ADC_InitStructure.ADC_ContinuousConvMode    = DISABLE;
+    ADC_InitStructure.ADC_ExternalTrigConvEdge  = ADC_ExternalTrigConvEdge_None;
+    ADC_InitStructure.ADC_DataAlign             = ADC_DataAlign_Right;
+    ADC_InitStructure.ADC_NbrOfConversion       = 1;
+    ADC_Init(ADC1, &ADC_InitStructure);
+    ADC_Cmd(ADC1, ENABLE);
+
+    DAC_InitStructure.DAC_Trigger        = DAC_Trigger_None;
+    DAC_InitStructure.DAC_WaveGeneration = DAC_WaveGeneration_None;
+    DAC_InitStructure.DAC_OutputBuffer   = DAC_OutputBuffer_Enable;
+    DAC_Init(DAC_Channel_2, &DAC_InitStructure);
+    DAC_Cmd(DAC_Channel_2, ENABLE);
+}
+
+uint16_t Read_ADC_Value(void)
+{
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_8, 1, ADC_SampleTime_3Cycles);
+    ADC_SoftwareStartConv(ADC1);
+    while(ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);
+    return ADC_GetConversionValue(ADC1);
+}
 
 void MENU_Init(void)
 {
@@ -36,6 +90,8 @@ void MENU_Init(void)
 
     GPIO_SetBits(GPIOD, GPIO_Pin_8);
     backlight_encendido = 1;
+
+    PERIFERICOS_Init();
 
     LCD_clrscr();
     modo_actual = PANTALLA_PRINCIPAL;
@@ -69,6 +125,8 @@ void MENU_MostrarOpciones(void)
 void MENU_Update(char tecla)
 {
     char buffer[20];
+    uint16_t adc_raw = 0;
+    uint32_t mv_actual = 0;
 
     switch (modo_actual)
     {
@@ -123,14 +181,15 @@ void MENU_Update(char tecla)
                     sprintf(buffer, "Contador: %lu s", getSeconds());
                     LCD_WriteString(0, 0, buffer);
                 }
-                else if (opcion_seleccionada == 3) // Caso 4: Seguidor ADC-DAC
+                else if (opcion_seleccionada == 3)
                 {
                     modo_actual = PANTALLA_SEGUIDOR;
                     LCD_clrscr();
-                    LCD_WriteString(0, 0, "AD1: 0 mV");
-                    LCD_WriteString(0, 1, "DAC: 0 mV");
+                    localSystickContador = getSystick();
+                    LCD_WriteString(0, 0, "AD1:    0 mV");
+                    LCD_WriteString(0, 1, "DAC:    0 mV");
                 }
-                else if (opcion_seleccionada == 4) // Caso 5: Voltímetro
+                else if (opcion_seleccionada == 4)
                 {
                     modo_actual = PANTALLA_VOLTIMETRO;
                     LCD_clrscr();
@@ -207,6 +266,28 @@ void MENU_Update(char tecla)
                 modo_actual = PANTALLA_PRINCIPAL;
                 LCD_clrscr();
                 MENU_MostrarOpciones();
+            }
+            else
+            {
+                if ((getSystick() - localSystickContador) >= 150)
+                {
+                    localSystickContador = getSystick();
+
+                    adc_raw = Read_ADC_Value();
+
+                    if (adc_raw > 4095) {
+                        adc_raw = 4095;
+                    }
+
+                    DAC_SetChannel2Data(DAC_Align_12b_R, adc_raw);
+
+                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
+
+                    sprintf(buffer, "AD1: %4lu mV ", mv_actual);
+                    LCD_WriteString(0, 0, buffer);
+                    sprintf(buffer, "DAC: %4lu mV ", mv_actual);
+                    LCD_WriteString(0, 1, buffer);
+                }
             }
             break;
 

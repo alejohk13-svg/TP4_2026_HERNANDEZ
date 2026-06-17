@@ -18,4 +18,7 @@ void MENU_Init(void);
 void MENU_MostrarOpciones(void);
 void MENU_Update(char tecla);
 
+void PERIFERICOS_Init(void);
+uint16_t ADC1_LeerCanal(uint8_t canal);
+
 #endif /* __MENU_H */
