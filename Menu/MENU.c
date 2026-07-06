@@ -38,19 +38,16 @@ void PERIFERICOS_Init(void)
 
     GPIO_StructInit(&GPIO_InitStructure);
 
-    // PB0 como Entrada Analogica (ADC_1 - Canal 8)
     GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_0;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
     GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    // PB1 como Entrada Analogica (ADC_2 - Canal 9)
     GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_1;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
     GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    // PA5 como Salida Analogica (DAC)
     GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_5;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
     GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
@@ -79,7 +76,6 @@ void PERIFERICOS_Init(void)
     DAC_Cmd(DAC_Channel_2, ENABLE);
 }
 
-// Lectura dinamica pasando el canal por parametro
 uint16_t Read_ADC_Value(uint8_t canal)
 {
     ADC_RegularChannelConfig(ADC1, canal, 1, ADC_SampleTime_3Cycles);
@@ -290,7 +286,6 @@ void MENU_Update(char tecla)
                 {
                     localSystickContador = getSystick();
 
-                    // Canal 8 es PB0
                     adc_raw = Read_ADC_Value(ADC_Channel_8);
 
                     if (adc_raw > 4095) {
@@ -318,12 +313,10 @@ void MENU_Update(char tecla)
             }
             else
             {
-                // Muestreo periodico cada 150 ms para la linea de tiempo real
                 if ((getSystick() - localSystickContador) >= 150)
                 {
                     localSystickContador = getSystick();
 
-                    // Canal 9 es PB1 (AD2)
                     adc_raw = Read_ADC_Value(ADC_Channel_9);
 
                     if (adc_raw > 4095) {
@@ -332,7 +325,6 @@ void MENU_Update(char tecla)
 
                     mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
 
-                    // Si se presiona la tecla '0', capturamos el valor actual en la variable HOLD
                     if (tecla == '0')
                     {
                         mv_hold = mv_actual;
@@ -340,11 +332,10 @@ void MENU_Update(char tecla)
                         LCD_WriteString(0, 0, buffer);
                     }
 
-                    // Mostrar linea 2 en tiempo real de forma continua
                     sprintf(buffer, "AD2:  %4lu mV ", mv_actual);
                     LCD_WriteString(0, 1, buffer);
                 }
-                // Si la tecla '0' se presiona fuera del tick exacto de los 150ms, la capturamos igual para que responda instantaneo
+
                 else if (tecla == '0')
                 {
                     adc_raw = Read_ADC_Value(ADC_Channel_9);
