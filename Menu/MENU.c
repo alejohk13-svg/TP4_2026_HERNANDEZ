@@ -294,7 +294,7 @@ void MENU_Update(char tecla)
 
                     DAC_SetChannel2Data(DAC_Align_12b_R, adc_raw);
 
-                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
+                    mv_actual = ((uint32_t)adc_raw * 3300) / 4095;
 
                     sprintf(buffer, "AD1: %4lu mV ", mv_actual);
                     LCD_WriteString(0, 0, buffer);
@@ -323,7 +323,7 @@ void MENU_Update(char tecla)
                         adc_raw = 4095;
                     }
 
-                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
+                    mv_actual = ((uint32_t)adc_raw * 3300) / 4095;
 
                     if (tecla == '0')
                     {
@@ -340,7 +340,7 @@ void MENU_Update(char tecla)
                 {
                     adc_raw = Read_ADC_Value(ADC_Channel_9);
                     if (adc_raw > 4095) adc_raw = 4095;
-                    mv_hold = ((uint32_t)adc_raw * 5000) / 4095;
+                    mv_hold = ((uint32_t)adc_raw * 3300) / 4095;
 
                     sprintf(buffer, "HOLD: %4lu mV ", mv_hold);
                     LCD_WriteString(0, 0, buffer);
