@@ -137,6 +137,9 @@ void MENU_Update(char tecla)
     char buffer[20];
     uint16_t adc_raw = 0;
     uint32_t mv_actual = 0;
+    uint32_t mv_dac_teorico = 0;
+    uint32_t suma_adc = 0;
+    int i = 0;
 
     switch (modo_actual)
     {
@@ -204,7 +207,7 @@ void MENU_Update(char tecla)
                     modo_actual = PANTALLA_VOLTIMETRO;
                     LCD_clrscr();
                     localSystickContador = getSystick();
-                    mv_hold = 0; // Reinicia el hold al entrar
+                    mv_hold = 0;
                     sprintf(buffer, "HOLD: %4lu mV ", mv_hold);
                     LCD_WriteString(0, 0, buffer);
                     LCD_WriteString(0, 1, "AD2:    0 mV");
@@ -282,23 +285,37 @@ void MENU_Update(char tecla)
             }
             else
             {
-                if ((getSystick() - localSystickContador) >= 150)
+                if ((getSystick() - localSystickContador) >= 650)
                 {
                     localSystickContador = getSystick();
 
-                    adc_raw = Read_ADC_Value(ADC_Channel_8);
+                    suma_adc = 0;
+                    for (i = 0; i < 16; i++)
+                    {
+                        suma_adc += Read_ADC_Value(ADC_Channel_8);
+                    }
+                    adc_raw = suma_adc / 16;
 
                     if (adc_raw > 4095) {
                         adc_raw = 4095;
                     }
 
-                    DAC_SetChannel2Data(DAC_Align_12b_R, adc_raw);
+                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
 
-                    mv_actual = ((uint32_t)adc_raw * 3300) / 4095;
+                    if (mv_actual <= 3300)
+                    {
+                        mv_dac_teorico = mv_actual;
+                        DAC_SetChannel2Data(DAC_Align_12b_R, adc_raw);
+                    }
+                    else
+                    {
+                        mv_dac_teorico = 3300;
+                        DAC_SetChannel2Data(DAC_Align_12b_R, 4095);
+                    }
 
                     sprintf(buffer, "AD1: %4lu mV ", mv_actual);
                     LCD_WriteString(0, 0, buffer);
-                    sprintf(buffer, "DAC: %4lu mV ", mv_actual);
+                    sprintf(buffer, "DAC: %4lu mV ", mv_dac_teorico);
                     LCD_WriteString(0, 1, buffer);
                 }
             }
@@ -313,17 +330,21 @@ void MENU_Update(char tecla)
             }
             else
             {
-                if ((getSystick() - localSystickContador) >= 150)
+                if ((getSystick() - localSystickContador) >= 650)
                 {
                     localSystickContador = getSystick();
 
-                    adc_raw = Read_ADC_Value(ADC_Channel_9);
+                    suma_adc = 0;
+                    for (i = 0; i < 10; i++) //PROMEDIO DE MUESTRAS PARA EVITAR VARIACIONES EN LCD
+                    {
+                        suma_adc += Read_ADC_Value(ADC_Channel_9);
+                    }
+                    adc_raw = suma_adc / 10;
 
                     if (adc_raw > 4095) {
                         adc_raw = 4095;
                     }
-
-                    mv_actual = ((uint32_t)adc_raw * 3300) / 4095;
+                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
 
                     if (tecla == '0')
                     {
@@ -335,12 +356,17 @@ void MENU_Update(char tecla)
                     sprintf(buffer, "AD2:  %4lu mV ", mv_actual);
                     LCD_WriteString(0, 1, buffer);
                 }
-
                 else if (tecla == '0')
                 {
-                    adc_raw = Read_ADC_Value(ADC_Channel_9);
+                    suma_adc = 0;
+                    for (i = 0; i < 10; i++)   //PROMEDIO DE MUESTRAS PARA EVITAR VARIACIONES EN LCD
+                    {
+                        suma_adc += Read_ADC_Value(ADC_Channel_9);
+                    }
+                    adc_raw = suma_adc / 10;
+
                     if (adc_raw > 4095) adc_raw = 4095;
-                    mv_hold = ((uint32_t)adc_raw * 3300) / 4095;
+                    mv_hold = ((uint32_t)adc_raw * 5000) / 4095;
 
                     sprintf(buffer, "HOLD: %4lu mV ", mv_hold);
                     LCD_WriteString(0, 0, buffer);
