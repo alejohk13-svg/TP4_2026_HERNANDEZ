@@ -136,8 +136,10 @@ void MENU_Update(char tecla)
 {
     char buffer[20];
     uint16_t adc_raw = 0;
+    uint32_t mv_pin_micro = 0;
     uint32_t mv_actual = 0;
     uint32_t mv_dac_teorico = 0;
+    uint32_t cuentas_dac = 0;
     uint32_t suma_adc = 0;
     int i = 0;
 
@@ -290,22 +292,30 @@ void MENU_Update(char tecla)
                     localSystickContador = getSystick();
 
                     suma_adc = 0;
-                    for (i = 0; i < 16; i++)
+                    for (i = 0; i < 10; i++)
                     {
                         suma_adc += Read_ADC_Value(ADC_Channel_8);
                     }
-                    adc_raw = suma_adc / 16;
+                    adc_raw = suma_adc / 10;
 
-                    if (adc_raw > 4095) {
+                    if (adc_raw > 4095)
+                    {
                         adc_raw = 4095;
                     }
 
-                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
+                    mv_pin_micro = ((uint32_t)adc_raw * 3300) / 4095;
+
+                    mv_actual = (mv_pin_micro * 5000) / 3300;
 
                     if (mv_actual <= 3300)
                     {
                         mv_dac_teorico = mv_actual;
-                        DAC_SetChannel2Data(DAC_Align_12b_R, adc_raw);
+
+                        cuentas_dac = (adc_raw * 5000) / 3300;
+                        if (cuentas_dac > 4095) {
+                            cuentas_dac = 4095;
+                        }
+                        DAC_SetChannel2Data(DAC_Align_12b_R, cuentas_dac);
                     }
                     else
                     {
@@ -335,7 +345,7 @@ void MENU_Update(char tecla)
                     localSystickContador = getSystick();
 
                     suma_adc = 0;
-                    for (i = 0; i < 10; i++) //PROMEDIO DE MUESTRAS PARA EVITAR VARIACIONES EN LCD
+                    for (i = 0; i < 10; i++)
                     {
                         suma_adc += Read_ADC_Value(ADC_Channel_9);
                     }
@@ -344,7 +354,9 @@ void MENU_Update(char tecla)
                     if (adc_raw > 4095) {
                         adc_raw = 4095;
                     }
-                    mv_actual = ((uint32_t)adc_raw * 5000) / 4095;
+
+                    mv_pin_micro = ((uint32_t)adc_raw * 3300) / 4095;
+                    mv_actual = (mv_pin_micro * 5000) / 3300;
 
                     if (tecla == '0')
                     {
@@ -356,17 +368,20 @@ void MENU_Update(char tecla)
                     sprintf(buffer, "AD2:  %4lu mV ", mv_actual);
                     LCD_WriteString(0, 1, buffer);
                 }
+
                 else if (tecla == '0')
                 {
                     suma_adc = 0;
-                    for (i = 0; i < 10; i++)   //PROMEDIO DE MUESTRAS PARA EVITAR VARIACIONES EN LCD
+                    for (i = 0; i < 10; i++)
                     {
                         suma_adc += Read_ADC_Value(ADC_Channel_9);
                     }
                     adc_raw = suma_adc / 10;
 
                     if (adc_raw > 4095) adc_raw = 4095;
-                    mv_hold = ((uint32_t)adc_raw * 5000) / 4095;
+
+                    mv_pin_micro = ((uint32_t)adc_raw * 3300) / 4095;
+                    mv_hold = (mv_pin_micro * 5000) / 3300;
 
                     sprintf(buffer, "HOLD: %4lu mV ", mv_hold);
                     LCD_WriteString(0, 0, buffer);
