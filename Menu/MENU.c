@@ -305,13 +305,13 @@ void MENU_Update(char tecla)
 
                     mv_pin_micro = ((uint32_t)adc_raw * 3300) / 4095;
 
-                    mv_actual = (mv_pin_micro * 5000) / 3300;
+                    mv_actual = (mv_pin_micro * (2200 + 4700)) / 4700; //CORRECCION USANDO DIVISOR RESISTIVO FISICO
 
                     if (mv_actual <= 3300)
                     {
                         mv_dac_teorico = mv_actual;
 
-                        cuentas_dac = (adc_raw * 5000) / 3300;
+                        cuentas_dac = (mv_actual * 4095) / 3300;
                         if (cuentas_dac > 4095) {
                             cuentas_dac = 4095;
                         }
@@ -356,7 +356,7 @@ void MENU_Update(char tecla)
                     }
 
                     mv_pin_micro = ((uint32_t)adc_raw * 3300) / 4095;
-                    mv_actual = (mv_pin_micro * 5000) / 3300;
+                    mv_actual = (mv_pin_micro * (2200 + 4700)) / 4700; //CORRECCION USANDO DIVISOR RESISTIVO FISICO
 
                     if (tecla == '0')
                     {
@@ -381,7 +381,7 @@ void MENU_Update(char tecla)
                     if (adc_raw > 4095) adc_raw = 4095;
 
                     mv_pin_micro = ((uint32_t)adc_raw * 3300) / 4095;
-                    mv_hold = (mv_pin_micro * 5000) / 3300;
+                    mv_hold = (mv_pin_micro * (2200 + 4700)) / 4700;  //CORRECCION USANDO DIVISOR RESISTIVO FISICO
 
                     sprintf(buffer, "HOLD: %4lu mV ", mv_hold);
                     LCD_WriteString(0, 0, buffer);
